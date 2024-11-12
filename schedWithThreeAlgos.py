@@ -302,8 +302,8 @@ def schc(initial_solution, initial_cost, max_steps, max_iterations, convergence_
             current_cost = best_cost
             step_count = 0  # Reset step count
             iterations_since_last_improvement += 1
-        
-        print(f"Iteration {iteration + 1}, Current Best Cost Solution in SCHC: [{best_cost}]")
+
+        print(f"Current Best Cost in SCHC: [{best_cost}], No Improvement Count: [{iteration + 1}]")
         
         # Check for convergence
         if iterations_since_last_improvement >= convergence_threshold:
