@@ -277,6 +277,8 @@ def schc(initial_solution, initial_cost, max_steps, max_iterations, convergence_
     step_count = 0  # Tracks consecutive worse solutions accepted
     iterations_since_last_improvement = 0  # Tracks iterations without improvement
 
+    start_time = time.time()
+
     for iteration in range(max_iterations):
         # Generate a neighboring solution
         new_solution = perturb(current_solution, exams, periods, rooms)
@@ -310,6 +312,8 @@ def schc(initial_solution, initial_cost, max_steps, max_iterations, convergence_
             print("Converged after", iteration + 1, "iterations.")
             break
     
+    elapsed_time = time.time() - start_time
+    print(f"Convergence took {elapsed_time:.2f} seconds.")
     return best_solution, best_cost
 
 def parse_input(json_file):
