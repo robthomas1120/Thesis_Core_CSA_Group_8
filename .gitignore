@@ -1,0 +1,8 @@
+venv/
+optimized_DLAS_output.txt
+optimized_DLAS_schedule.xlsx
+optimized_LAHC_output.txt
+optimized_LAHC_schedule.xlsx
+optimized_SCHC_output.txt
+optimized_SCHC_schedule.xlsx
+original_schedule_output.txt
