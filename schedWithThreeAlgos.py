@@ -4,9 +4,6 @@ import random
 import copy
 import json
 import openpyxl
-import threading
-import json
-import random
 
 def initialize_lahc(initial_solution, initial_cost, list_length):
     # Initialize the look-back list with initial_cost repeated list_length times
@@ -61,31 +58,19 @@ def save_schedule_to_excel(schedule, periods, output_file):
     sheet.title = "Exam Schedule"
 
     # Add headers to the sheet
-    sheet.append(["Exam ID", "Period Date", "Period Time", "Duration (mins)", "Room", "Penalty"])
+    sheet.append(["Exam ID", "Period Date", "Room"])
 
     # Add exam schedule data
     for exam_id, details in schedule.items():
         period_id = details[0]  # Access period_id from tuple
         room_id = details[1]    # Access room_id from tuple
-
-        # Get period information or mark as "Unscheduled" if not assigned
-        if period_id != -1:
-            period = periods[period_id]
-            period_date = period.get('date', "Unscheduled")
-            period_time = period.get('time', "")
-            duration = period.get('duration_in_minutes', "")
-            penalty = period.get('penalty', "")
-        else:
-            period_date = "Unscheduled"
-            period_time = ""
-            duration = ""
-            penalty = ""
-
-        # Get room information
+        
+        # Get period date or mark as "Unscheduled"
+        period_date = periods[period_id]['date'] if period_id != -1 else "Unscheduled"
         room = room_id if room_id != -1 else "No room"
 
-        # Append data to the sheet
-        sheet.append([exam_id, period_date, period_time, duration, room, penalty])
+        # Append only the relevant data
+        sheet.append([exam_id, period_date, room])
 
     # Save the workbook to the specified output file
     workbook.save(output_file)
@@ -132,142 +117,46 @@ def LAHC(initial_solution, initial_cost, list_length, max_no_improve, compute_co
     print(f"Convergence took {elapsed_time:.2f} seconds.")
     return best_solution, best_cost
 
-def chatGPTDLAS(initial_solution, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
+def DLAS(initial_solution, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
     lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
     current_solution = initial_solution
     current_cost = initial_cost
-
-    no_improve_count = 0
-
+    
     start_time = time.time()
 
-    # Iteration: Check convergence
+
+    # Convergence criterion: count the number of iterations without improvement
+    no_improve_count = 0
+
     while no_improve_count < max_no_improve:
-        # Perturbation: Generate a new candidate solution
+        # Generate a new candidate solution
         new_solution = perturb(current_solution, exams, periods, rooms)
         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
+        
+        # Update the best solution if the new solution is better
+        if new_cost < best_cost:
+            best_solution = new_solution
+            best_cost = new_cost
+            no_improve_count = 0  # Reset no improvement counter
+        else:
+            no_improve_count += 1  # Increment no improvement counter
 
-        # Acceptance: Check if the candidate solution meets acceptance criteria
-        if new_cost <= lookback_list[k % list_length] or new_cost <= best_cost:
-            # Update current schedule and cost
+        # Acceptance criterion based on the look-back list
+        if new_cost < lookback_list[k % list_length]:
             current_solution = new_solution
             current_cost = new_cost
 
-            # Update best solution if new cost is better
-            if new_cost < best_cost:
-                best_solution = new_solution
-                best_cost = new_cost
-                no_improve_count = 0  # Reset no improvement counter
-            else:
-                no_improve_count += 1
-        else:
-            no_improve_count += 1
-
-        # Replacement: Update the lookback list with current cost if needed
-        if current_cost > lookback_list[k % list_length]:
-            lookback_list[k % list_length] = current_cost
-
-        # Increment the iteration pointer
+        # Update the look-back list with the current cost
+        lookback_list[k % list_length] = current_cost
+        
+        # Increment counter
         k += 1
-
+        
         print(f"Current Best Cost in DLAS: [{best_cost}], No Improvement Count: [{no_improve_count}]")
-
+    
     elapsed_time = time.time() - start_time
     print(f"Convergence took {elapsed_time:.2f} seconds.")
     return best_solution, best_cost
-
-# def robDLAS(initial_solution, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-#     lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
-#     current_solution = initial_solution
-#     current_cost = initial_cost
-
-#     no_improve_count = 0
-
-#     start_time = time.time()
-
-#     # Iteration: Check convergence
-#     while no_improve_count < max_no_improve:
-#         # Perturbation: Generate a new candidate solution
-#         new_solution = perturb(current_solution, exams, periods, rooms)
-#         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
-
-#         # Acceptance: Check if the candidate solution meets acceptance criteria
-#         if new_cost <= lookback_list[k % list_length] or new_cost <= best_cost:
-#             # Update current schedule and cost
-#             current_solution = new_solution
-#             current_cost = new_cost
-
-#             # Update best solution if new cost is better
-#             if current_cost < best_cost:
-#                 best_solution = current_solution
-#                 best_cost = new_cost
-#                 no_improve_count = 0  # Reset no improvement counter
-#             else:
-#                 no_improve_count += 1
-
-#         # Replacement: Update the lookback list with current cost if needed
-#         if current_cost > lookback_list[k % list_length]:
-#             lookback_list[k % list_length] = current_cost
-
-#         else:
-#             if  current_cost < lookback_list[k % list_length]:
-#                 if lookback_list[k % list_length] == best_cost:
-#                     no_improve_count += 1
-#                 else:
-#                     lookback_list[k % list_length] = current_cost
-#                     no_improve_count = 0
-#             # else:
-#             #     no_improve_count += 1
-        
-
-#         print(f"Current Best Cost in DLAS: [{best_cost}], No Improvement Count: [{no_improve_count}]")
-
-#     elapsed_time = time.time() - start_time
-#     print(f"Convergence took {elapsed_time:.2f} seconds.")
-#     return best_solution, best_cost
-
-
-
-# def DLAS(initial_solution, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-#     lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
-#     current_solution = initial_solution
-#     current_cost = initial_cost
-    
-#     start_time = time.time()
-
-
-#     # Convergence criterion: count the number of iterations without improvement
-#     no_improve_count = 0
-
-#     while no_improve_count < max_no_improve:
-#         # Generate a new candidate solution
-#         new_solution = perturb(current_solution, exams, periods, rooms)
-#         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
-        
-#         # Update the best solution if the new solution is better
-#         if new_cost < best_cost:
-#             best_solution = new_solution
-#             best_cost = new_cost
-#             no_improve_count = 0  # Reset no improvement counter
-#         else:
-#             no_improve_count += 1  # Increment no improvement counter
-
-#         # Acceptance criterion based on the look-back list
-#         if new_cost < lookback_list[k % list_length]:
-#             current_solution = new_solution
-#             current_cost = new_cost
-
-#         # Update the look-back list with the current cost
-#         lookback_list[k % list_length] = current_cost
-        
-#         # Increment counter
-#         k += 1
-        
-#         print(f"Current Best Cost in DLAS: [{best_cost}], No Improvement Count: [{no_improve_count}]")
-    
-#     elapsed_time = time.time() - start_time
-#     print(f"Convergence took {elapsed_time:.2f} seconds.")
-#     return best_solution, best_cost
 
 def schc(initial_solution, initial_cost, max_steps, max_iterations, convergence_threshold, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
     best_solution = initial_solution
@@ -276,8 +165,6 @@ def schc(initial_solution, initial_cost, max_steps, max_iterations, convergence_
     current_cost = initial_cost
     step_count = 0  # Tracks consecutive worse solutions accepted
     iterations_since_last_improvement = 0  # Tracks iterations without improvement
-
-    start_time = time.time()
 
     for iteration in range(max_iterations):
         # Generate a neighboring solution
@@ -304,16 +191,14 @@ def schc(initial_solution, initial_cost, max_steps, max_iterations, convergence_
             current_cost = best_cost
             step_count = 0  # Reset step count
             iterations_since_last_improvement += 1
-
-        print(f"Current Best Cost in SCHC: [{best_cost}], No Improvement Count: [{iteration + 1}]")
+        
+        print(f"Iteration {iteration + 1}, Current Best Cost Solution in SCHC: [{best_cost}]")
         
         # Check for convergence
         if iterations_since_last_improvement >= convergence_threshold:
             print("Converged after", iteration + 1, "iterations.")
             break
     
-    elapsed_time = time.time() - start_time
-    print(f"Convergence took {elapsed_time:.2f} seconds.")
     return best_solution, best_cost
 
 def parse_input(json_file):
@@ -570,51 +455,14 @@ def generate_n_schedules(n, exams, periods, rooms, period_constraints, room_cons
             print("Could not generate a valid schedule in this attempt.")
 
     return schedules
-def run_lahc(initial_schedule, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-    print("Running LAHC to optimize the schedule...")
-    best_schedule, best_cost = LAHC(
-        initial_schedule, initial_cost, list_length, max_no_improve,
-        compute_cost, exams, periods, rooms, period_constraints, room_constraints,
-        institutional_weightings, student_counts
-    )
-    with open("optimized_LAHC_output.txt", "w") as file:
-        file.write(f"Best schedule cost: {best_cost}\n")
-        file.write(json.dumps(best_schedule, indent=4))
-    save_schedule_to_excel(best_schedule, periods, "optimized_LAHC_schedule.xlsx")
-    print(f"LAHC best schedule cost: {best_cost}")
-
-def run_dlas(initial_schedule, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-    print("Running DLAS to optimize the schedule...")
-    best_schedule, best_cost = chatGPTDLAS(
-        initial_schedule, initial_cost, list_length, max_no_improve,
-        compute_cost, exams, periods, rooms, period_constraints, room_constraints,
-        institutional_weightings, student_counts
-    )
-    with open("optimized_DLAS_output.txt", "w") as file:
-        file.write(f"Best schedule cost: {best_cost}\n")
-        file.write(json.dumps(best_schedule, indent=4))
-    save_schedule_to_excel(best_schedule, periods, "optimized_DLAS_schedule.xlsx")
-    print(f"DLAS best schedule cost: {best_cost}")
-
-def run_schc(initial_schedule, initial_cost, max_steps, max_iterations, convergence_threshold, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-    print("Running SCHC to optimize the schedule...")
-    best_schedule, best_cost = schc(
-        initial_schedule, initial_cost, max_steps, max_iterations, convergence_threshold,
-        compute_cost, exams, periods, rooms, period_constraints, room_constraints,
-        institutional_weightings, student_counts
-    )
-    with open("optimized_SCHC_output.txt", "w") as file:
-        file.write(f"Best schedule cost: {best_cost}\n")
-        file.write(json.dumps(best_schedule, indent=4))
-    save_schedule_to_excel(best_schedule, periods, "optimized_SCHC_schedule.xlsx")
-    print(f"SCHC best schedule cost: {best_cost}")
-
 def main():
     json_file = "/Users/robalvarez/Desktop/Thesis_Core_CSA_Group_8/examtojson1.json"  # Your file path here
     exams, periods, rooms, period_constraints, room_constraints, institutional_weightings = parse_input(json_file)
     
     # Placeholder for student counts
     student_counts = {exam['exam_id']: random.randint(1, 30) for exam in exams}
+    
+    #print(f"Loaded {len(exams)} exams, {len(periods)} periods, and {len(rooms)} rooms.")
     
     # Initial schedule generation (try to generate one valid schedule first)
     initial_schedule = {exam['exam_id']: (-1, -1) for exam in exams}
@@ -627,31 +475,81 @@ def main():
     
     # Save the original schedule before optimization
     with open("original_schedule_output.txt", "w") as file:
-        file.write("Original schedule before optimization:\n")
+        file.write("Original schedule before DLAS optimization:\n")
         file.write(json.dumps(initial_schedule, indent=4))
-        file.write(f"\nOriginal schedule cost: {initial_cost}\n")
+        file.write(f"\nOriginal schedule cost: {initial_cost}\n")  # Save the original cost
 
-    # Parameters for each algorithm
-    lahc_params = (initial_schedule, initial_cost, 10, 100, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts)
-    dlas_params = (initial_schedule, initial_cost, 5, 50, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts)
-    schc_params = (initial_schedule, initial_cost, 5, 500, 100, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts)
+    # LAHC parameters
+    list_length = 10
+    max_no_improve = 5  # Run for 1 minute
     
-    # Create threads for each algorithm
-    lahc_thread = threading.Thread(target=run_lahc, args=lahc_params)
-    dlas_thread = threading.Thread(target=run_dlas, args=dlas_params)
-    schc_thread = threading.Thread(target=run_schc, args=schc_params)
+    print("Running LAHC to optimize the schedule...")
     
-    # Start the threads
-    lahc_thread.start()
-    dlas_thread.start()
-    schc_thread.start()
+    # Run LAHC for 1 minute
+    best_schedule, best_cost = LAHC(
+        initial_schedule, initial_cost, list_length, max_no_improve, 
+        compute_cost, exams, periods, rooms, period_constraints, room_constraints, 
+        institutional_weightings, student_counts
+    )
     
-    # Wait for all threads to complete
-    lahc_thread.join()
-    dlas_thread.join()
-    schc_thread.join()
+    # Output best schedule
+    # print("Best Schedule:", best_schedule)
+    print(f"Best schedule found with cost: {best_cost}")
+
+        # Optionally save result to a file
+    with open("optimized_LAHC_output.txt", "w") as file:
+        file.write(f"Best schedule cost: {best_cost}\n")
+        file.write(json.dumps(best_schedule, indent=4))
+
+    save_schedule_to_excel(best_schedule, periods, "optimized_LAHC_schedule.xlsx")
+
+    list_length = 5
+    max_no_improve = 5  # Run for 1 minute
     
-    print("All algorithms have completed execution.")
+    print("Running DLAS to optimize the schedule...")
+
+    # Run DLAS for 1 minute
+    best_schedule, best_cost = DLAS(
+        initial_schedule, initial_cost, list_length, max_no_improve, 
+        compute_cost, exams, periods, rooms, period_constraints, room_constraints, 
+        institutional_weightings, student_counts
+    )
+    
+    # Output best schedule
+    # print("Best Schedule:", best_schedule)
+    print(f"Best schedule found with cost: {best_cost}")
+
+            # Optionally save result to a file
+    with open("optimized_DLAS_output.txt", "w") as file:
+        file.write(f"Best schedule cost: {best_cost}\n")
+        file.write(json.dumps(best_schedule, indent=4))
+
+    save_schedule_to_excel(best_schedule, periods, "optimized_DLAS_schedule.xlsx")
+
+    # SCHC parameters
+    max_steps = 5
+    max_iterations = 500  # Run for 1 minute
+    convergence_threshold = 5
+    
+    print("Running LAHC to optimize the schedule...")
+    
+    # Run SCHC for 1 minute
+    best_schedule, best_cost = schc(
+        initial_schedule, initial_cost, max_steps, max_iterations, convergence_threshold, 
+        compute_cost, exams, periods, rooms, period_constraints, room_constraints, 
+        institutional_weightings, student_counts
+    )
+    
+    # Output best schedule
+    # print("Best Schedule:", best_schedule)
+    print(f"Best schedule found with cost: {best_cost}")
+    
+        # Optionally save result to a file
+    with open("optimized_SCHC_output.txt", "w") as file:
+        file.write(f"Best schedule cost: {best_cost}\n")
+        file.write(json.dumps(best_schedule, indent=4))
+
+    save_schedule_to_excel(best_schedule, periods, "optimized_SCHC_schedule.xlsx")
 
 if __name__ == "__main__":
     main()
