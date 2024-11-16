@@ -105,7 +105,7 @@ def LAHC_with_perturb_list(initial_solution, initial_cost, list_length, max_no_i
     while no_improve_count < max_no_improve:
         # Get the next perturbation from the list
         new_solution = perturb_list[perturb_index]
-        perturb_index = (perturb_index + 1) % len(perturb_list)  # Wrap around if we exceed the list length
+        perturb_index = (perturb_index + 1) # % len(perturb_list)  # Wrap around if we exceed the list length
         
         # Calculate the cost of the new solution
         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
@@ -236,7 +236,7 @@ def DLAS_with_perturb_list(initial_solution, initial_cost, list_length, max_no_i
     while no_improve_count < max_no_improve:
         # Get the next perturbation from the list
         new_solution = perturb_list[perturb_index]
-        perturb_index = (perturb_index + 1) % len(perturb_list)  # Wrap around if we exceed the list length
+        perturb_index = (perturb_index + 1) #% len(perturb_list)  # Wrap around if we exceed the list length
 
         # Calculate the cost of the new solution
         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
@@ -327,7 +327,7 @@ def schc_with_perturb_list(initial_solution, initial_cost, max_steps, max_iterat
     for iteration in range(max_iterations):
         # Get the next perturbation from the list
         new_solution = perturb_list[perturb_index]
-        perturb_index = (perturb_index + 1) % len(perturb_list)  # Wrap around if we exceed the list length
+        perturb_index = (perturb_index + 1) #% len(perturb_list)  # Wrap around if we exceed the list length
 
         # Calculate the cost of the new solution
         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
