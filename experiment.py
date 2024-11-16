@@ -85,7 +85,55 @@ def generate_perturb_list(schedule, exams, periods, rooms, num_perturbations=500
         perturb_list.append(perturb(schedule, exams, periods, rooms))
     return perturb_list
 
+def LAHC_NAMAZI(initial_solution, initial_cost, list_length, max_no_improve,
+                           compute_cost, exams, periods, rooms, period_constraints,
+                           room_constraints, institutional_weightings, student_counts, perturb_list):
 
+    lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
+    current_solution = initial_solution
+    current_cost = initial_cost
+    perturb_index = 0   
+    start_time = time.time()
+
+    # Convergence criterion: count the number of iterations without improvement
+    no_improve_count = 0
+
+    while no_improve_count < max_no_improve:
+
+        # Get the next perturbation from the list
+        new_solution = perturb_list[perturb_index]
+        perturb_index = (perturb_index + 1)
+        new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
+        lookback_value = lookback_list[k % list_length]
+
+        #checks if new cost is better (lower) or equal to current solution OR new cost is lower than the cost stored in the look back list 
+        if new_cost <= current_cost or new_cost < lookback_value:
+            current_solution = new_solution
+            current_cost = new_cost
+
+            #checks if the solution is better (lower) than the cost of the best solution found so far
+            if new_cost < best_cost:
+                best_solution = new_solution
+                best_cost = new_cost
+                no_improve_count = 0
+
+        #checks whether the current cost is better (lower) than the corresponding value stored in the lookback list at index k % list_length.
+        if current_cost < lookback_list[k % list_length]:
+
+            #If the current cost is better, it replaces the value in the lookback list at the calculated index.
+	        #This ensures that the lookback list always holds the best costs encountered in recent iterations.
+            lookback_list[k % list_length] = current_cost
+
+        #if no improvement is found the no improve count is increased by one and loops back from the while loop until it reaches the certain amount of times until it stops
+        no_improve_count += 1;
+
+        print(f"Current Best Cost in LAHC: [{best_cost}], No Improvement Count: [{no_improve_count}]")
+    
+    elapsed_time = time.time() - start_time
+    print(f"Convergence took {elapsed_time:.2f} seconds.")
+    return best_solution, best_cost
+
+        
 def LAHC_with_perturb_list(initial_solution, initial_cost, list_length, max_no_improve,
                            compute_cost, exams, periods, rooms, period_constraints,
                            room_constraints, institutional_weightings, student_counts, perturb_list):
@@ -644,13 +692,13 @@ def main():
         file.write(f"\nOriginal schedule cost: {initial_cost}\n")  # Save the original cost
 
     # LAHC parameters
-    list_length = 10
-    max_no_improve = 5  # Run for 1 minute
+    list_length = 50
+    max_no_improve = 100  # Run for 1 minute
     
     print("Running LAHC to optimize the schedule...")
     
     # Run LAHC for 1 minute
-    best_schedule, best_cost = LAHC_with_perturb_list(
+    best_schedule, best_cost = LAHC_NAMAZI(
         initial_schedule, initial_cost, list_length, max_no_improve,
         compute_cost, exams, periods, rooms, period_constraints,
         room_constraints, institutional_weightings, student_counts,
@@ -668,8 +716,8 @@ def main():
 
     save_schedule_to_excel(best_schedule, periods, "optimized_LAHC_schedule.xlsx")
 
-    list_length = 5
-    max_no_improve = 5  # Run for 1 minute
+    list_length = 10
+    max_no_improve = 50  # Run for 1 minute
     
     print("Running DLAS to optimize the schedule...")
 
