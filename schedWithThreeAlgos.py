@@ -51,6 +51,7 @@ def compute_cost(schedule, institutional_weightings, student_counts):
     hard_weight, soft_weight = calculate_schedule_weight(schedule, institutional_weightings, student_counts)
     return hard_weight + soft_weight
 
+
 def save_schedule_to_excel(schedule, periods, output_file):
     # Create a new workbook and select the active worksheet
     workbook = openpyxl.Workbook()
@@ -58,19 +59,31 @@ def save_schedule_to_excel(schedule, periods, output_file):
     sheet.title = "Exam Schedule"
 
     # Add headers to the sheet
-    sheet.append(["Exam ID", "Period Date", "Room"])
+    sheet.append(["Exam ID", "Period Date", "Period Time", "Duration (mins)", "Room", "Penalty"])
 
     # Add exam schedule data
     for exam_id, details in schedule.items():
         period_id = details[0]  # Access period_id from tuple
         room_id = details[1]    # Access room_id from tuple
-        
-        # Get period date or mark as "Unscheduled"
-        period_date = periods[period_id]['date'] if period_id != -1 else "Unscheduled"
+
+        # Get period information or mark as "Unscheduled" if not assigned
+        if period_id != -1:
+            period = periods[period_id]
+            period_date = period.get('date', "Unscheduled")
+            period_time = period.get('time', "")
+            duration = period.get('duration_in_minutes', "")
+            penalty = period.get('penalty', "")
+        else:
+            period_date = "Unscheduled"
+            period_time = ""
+            duration = ""
+            penalty = ""
+
+        # Get room information
         room = room_id if room_id != -1 else "No room"
 
-        # Append only the relevant data
-        sheet.append([exam_id, period_date, room])
+        # Append data to the sheet
+        sheet.append([exam_id, period_date, period_time, duration, room, penalty])
 
     # Save the workbook to the specified output file
     workbook.save(output_file)
@@ -197,99 +210,6 @@ def DLAS_NAMAZI(initial_solution, compute_cost, list_length, max_no_improve,
     print(f"DLAS completed in {elapsed_time:.2f} seconds.")
 
     return best_solution, best_cost
-
-
-def DLAS_with_perturb_list(initial_solution, initial_cost, list_length, max_no_improve,
-                           compute_cost, exams, periods, rooms, period_constraints,
-                           room_constraints, institutional_weightings, student_counts, perturb_list):
-    """
-    DLAS algorithm that uses a precomputed list of perturbations.
-    """
-    lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
-    current_solution = initial_solution
-    current_cost = initial_cost
-    perturb_index = 0  # To track which perturbation to use
-
-    start_time = time.time()
-
-    # Convergence criterion: count the number of iterations without improvement
-    no_improve_count = 0
-
-    while no_improve_count < max_no_improve:
-        # Get the next perturbation from the list
-        new_solution = perturb_list[perturb_index]
-        perturb_index = (perturb_index + 1) #% len(perturb_list)  # Wrap around if we exceed the list length
-
-        # Calculate the cost of the new solution
-        new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
-        
-        # Update the best solution if the new solution is better
-        if new_cost < best_cost:
-            best_solution = new_solution
-            best_cost = new_cost
-            no_improve_count = 0  # Reset no improvement counter
-        else:
-            no_improve_count += 1  # Increment no improvement counter
-
-        # Acceptance criterion based on the look-back list
-        if new_cost < lookback_list[k % list_length]:
-            current_solution = new_solution
-            current_cost = new_cost
-
-        # Update the look-back list with the current cost
-        lookback_list[k % list_length] = current_cost
-        
-        # Increment counter
-        k += 1
-        
-        print(f"Current Best Cost in DLAS: [{best_cost}], No Improvement Count: [{no_improve_count}]")
-    
-    elapsed_time = time.time() - start_time
-    print(f"Convergence took {elapsed_time:.2f} seconds.")
-    return best_solution, best_cost
-
-# def schc(initial_solution, initial_cost, max_steps, max_iterations, convergence_threshold, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-#     best_solution = initial_solution
-#     best_cost = initial_cost
-#     current_solution = initial_solution
-#     current_cost = initial_cost
-#     step_count = 0  # Tracks consecutive worse solutions accepted
-#     iterations_since_last_improvement = 0  # Tracks iterations without improvement
-
-#     for iteration in range(max_iterations):
-#         # Generate a neighboring solution
-#         new_solution = perturb(current_solution, exams, periods, rooms)
-#         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
-        
-#         # If the new solution is better, accept it
-#         if new_cost < best_cost:
-#             best_solution = new_solution
-#             best_cost = new_cost
-#             current_solution = new_solution
-#             current_cost = new_cost
-#             step_count = 0  # Reset step count when an improvement is found
-#             iterations_since_last_improvement = 0  # Reset convergence counter
-#         elif step_count < max_steps:
-#             # Accept worse solution if step count threshold is not reached
-#             current_solution = new_solution
-#             current_cost = new_cost
-#             step_count += 1
-#             iterations_since_last_improvement += 1
-#         else:
-#             # Reset to best solution when step count limit is exceeded
-#             current_solution = best_solution
-#             current_cost = best_cost
-#             step_count = 0  # Reset step count
-#             iterations_since_last_improvement += 1
-        
-#         print(f"Iteration {iteration + 1}, Current Best Cost Solution in SCHC: [{best_cost}]")
-        
-#         # Check for convergence
-#         if iterations_since_last_improvement >= convergence_threshold:
-#             print("Converged after", iteration + 1, "iterations.")
-#             break
-    
-#     return best_solution, best_cost
 
 def schc_with_perturb_list(initial_solution, initial_cost, max_steps, max_iterations,
                            convergence_threshold, compute_cost, exams, periods, rooms,
