@@ -133,157 +133,9 @@ def LAHC_NAMAZI(initial_solution, initial_cost, list_length, max_no_improve,
     print(f"Convergence took {elapsed_time:.2f} seconds.")
     return best_solution, best_cost
 
-        
-def LAHC_with_perturb_list(initial_solution, initial_cost, list_length, max_no_improve,
-                           compute_cost, exams, periods, rooms, period_constraints,
-                           room_constraints, institutional_weightings, student_counts, perturb_list):
-    """
-    LAHC algorithm that uses a precomputed list of perturbations.
-    """
-    lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
-    current_solution = initial_solution
-    current_cost = initial_cost
-    perturb_index = 0  # To track which perturbation to use
-    
-    start_time = time.time()
-
-    # Convergence criterion: count the number of iterations without improvement
-    no_improve_count = 0
-
-    while no_improve_count < max_no_improve:
-        # Get the next perturbation from the list
-        new_solution = perturb_list[perturb_index]
-        perturb_index = (perturb_index + 1) # % len(perturb_list)  # Wrap around if we exceed the list length
-        
-        # Calculate the cost of the new solution
-        new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
-        
-        # Update the best solution if the new solution is better
-        if new_cost < best_cost:
-            best_solution = new_solution
-            best_cost = new_cost
-            no_improve_count = 0  # Reset no improvement counter
-        else:
-            no_improve_count += 1  # Increment no improvement counter
-
-        # Acceptance criterion based on the look-back list
-        if new_cost <= lookback_list[k % list_length]:
-            current_solution = new_solution
-            current_cost = new_cost
-
-        # Update the look-back list with the current cost
-        lookback_list[k % list_length] = current_cost
-        
-        # Increment counter
-        k += 1
-        
-        print(f"Current Best Cost in LAHC: [{best_cost}], No Improvement Count: [{no_improve_count}]")
-    
-    elapsed_time = time.time() - start_time
-    print(f"Convergence took {elapsed_time:.2f} seconds.")
-    return best_solution, best_cost
-
-# def LAHC(initial_solution, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-#     lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
-#     current_solution = initial_solution
-#     current_cost = initial_cost
-    
-#     start_time = time.time()
-
-
-#     # Convergence criterion: count the number of iterations without improvement
-#     no_improve_count = 0
-
-#     while no_improve_count < max_no_improve:
-#         # Generate a new candidate solution
-#         new_solution = perturb(current_solution, exams, periods, rooms)
-#         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
-        
-#         # Update the best solution if the new solution is better
-#         if new_cost < best_cost:
-#             best_solution = new_solution
-#             best_cost = new_cost
-#             no_improve_count = 0  # Reset no improvement counter
-#         else:
-#             no_improve_count += 1  # Increment no improvement counter
-
-#         # Acceptance criterion based on the look-back list
-#         if new_cost <= lookback_list[k % list_length]:
-#             current_solution = new_solution
-#             current_cost = new_cost
-
-#         # Update the look-back list with the current cost
-#         lookback_list[k % list_length] = current_cost
-        
-#         # Increment counter
-#         k += 1
-        
-#         print(f"Current Best Cost in LAHC: [{best_cost}], No Improvement Count: [{no_improve_count}]")
-    
-#     elapsed_time = time.time() - start_time
-#     print(f"Convergence took {elapsed_time:.2f} seconds.")
-#     return best_solution, best_cost
-
-# def DLAS(initial_solution, initial_cost, list_length, max_no_improve, compute_cost, exams, periods, rooms, period_constraints, room_constraints, institutional_weightings, student_counts):
-#     lookback_list, best_solution, best_cost, k = initialize_lahc(initial_solution, initial_cost, list_length)
-#     current_solution = initial_solution
-#     current_cost = initial_cost
-    
-#     start_time = time.time()
-
-
-#     # Convergence criterion: count the number of iterations without improvement
-#     no_improve_count = 0
-
-#     while no_improve_count < max_no_improve:
-#         # Generate a new candidate solution
-#         new_solution = perturb(current_solution, exams, periods, rooms)
-#         new_cost = compute_cost(new_solution, institutional_weightings, student_counts)
-        
-#         # Update the best solution if the new solution is better
-#         if new_cost < best_cost:
-#             best_solution = new_solution
-#             best_cost = new_cost
-#             no_improve_count = 0  # Reset no improvement counter
-#         else:
-#             no_improve_count += 1  # Increment no improvement counter
-
-#         # Acceptance criterion based on the look-back list
-#         if new_cost < lookback_list[k % list_length]:
-#             current_solution = new_solution
-#             current_cost = new_cost
-
-#         # Update the look-back list with the current cost
-#         lookback_list[k % list_length] = current_cost
-        
-#         # Increment counter
-#         k += 1
-        
-#         print(f"Current Best Cost in DLAS: [{best_cost}], No Improvement Count: [{no_improve_count}]")
-    
-#     elapsed_time = time.time() - start_time
-#     print(f"Convergence took {elapsed_time:.2f} seconds.")
-#     return best_solution, best_cost
-
-def check_termination_criteria(no_improve_count, max_no_improve, iteration, max_iterations, elapsed_time, max_time):
-    # Terminate if no improvement for max_no_improve iterations
-    if no_improve_count >= max_no_improve:
-        return True
-    
-    # Terminate if max iterations reached
-    if iteration >= max_iterations:
-        return True
-    
-    # Terminate if elapsed time exceeds max_time
-    if elapsed_time >= max_time:
-        return True
-    
-    return False
-
 def DLAS_NAMAZI(initial_solution, compute_cost, list_length, max_no_improve, 
-                termination_criteria, exams, periods, 
-                rooms, period_constraints, room_constraints, 
-                institutional_weightings, student_counts, perturb_list, max_iterations, max_time):
+                exams, periods, rooms, period_constraints, room_constraints, 
+                institutional_weightings, student_counts, perturb_list):
 
     # Initialize the solution and cost
     current_solution = initial_solution
@@ -303,8 +155,8 @@ def DLAS_NAMAZI(initial_solution, compute_cost, list_length, max_no_improve,
 
     start_time = time.time()
 
-    while True:
-        # Step 8: Store the previous fitness value F−
+    while no_improve_count < max_no_improve:
+        # Store the previous fitness value F−
         previous_cost = current_cost
 
         # Apply perturbation function to generate new solution
@@ -338,15 +190,8 @@ def DLAS_NAMAZI(initial_solution, compute_cost, list_length, max_no_improve,
                 phi_max = max(lookback_list)
                 phi_max_count = lookback_list.count(phi_max)
 
-        # Check termination criteria
-        elapsed_time = time.time() - start_time
-        if termination_criteria(no_improve_count, max_no_improve, iteration, max_iterations, elapsed_time, max_time):
-            break
-
-        iteration += 1
-
         # Debug information
-        print(f"Iteration: {iteration}, Best Cost: {best_cost}, Current Cost: {current_cost}, Φmax: {phi_max}, N: {phi_max_count}")
+        print(f"Current Best Cost in DLAS: [{best_cost}], No Improvement Count: [{no_improve_count}]")
 
     elapsed_time = time.time() - start_time
     print(f"DLAS completed in {elapsed_time:.2f} seconds.")
@@ -810,16 +655,14 @@ def main():
     save_schedule_to_excel(best_schedule, periods, "optimized_LAHC_schedule.xlsx")
 
     list_length = 10
-    max_no_improve = 50  # Run for 1 minute
+    max_no_improve = 5  # Run for 1 minute
     
     print("Running DLAS to optimize the schedule...")
 
     best_schedule, best_cost = DLAS_NAMAZI(
     initial_schedule, compute_cost, list_length, max_no_improve, 
-    check_termination_criteria, exams, periods, 
-    rooms, period_constraints, room_constraints, 
-    institutional_weightings, student_counts, perturb_list, 
-    max_iterations=1000, max_time=60  # Set these based on your needs
+    exams, periods, rooms, period_constraints, room_constraints, 
+    institutional_weightings, student_counts, perturb_list
 )
     
     # Output best schedule
