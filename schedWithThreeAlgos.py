@@ -543,9 +543,18 @@ def main():
     
     # Save the original schedule before optimization
     with open("original_schedule_output.txt", "w") as file:
-        file.write("Original schedule before DLAS optimization:\n")
+        file.write("Original schedule before optimization:\n")
         file.write(json.dumps(initial_schedule, indent=4))
         file.write(f"\nOriginal schedule cost: {initial_cost}\n")  # Save the original cost
+
+            # Optionally save result to a file
+    with open("original_schedule_output.txt", "w") as file:
+        file.write(f"original schedule cost: {initial_cost}\n")
+        file.write(json.dumps(initial_schedule, indent=4))
+
+    save_schedule_to_excel(initial_schedule, periods, "original_schedule.xlsx")
+
+    print("original schedule saved")
 
     # LAHC ORIGINAL parameters
     # list_length = 50
