@@ -4,6 +4,8 @@ import random
 import copy
 import json
 import openpyxl
+import pandas as pd
+import matplotlib.pyplot as plt
 
 def initialize_lahc(initial_solution, initial_cost, list_length):
     # Initialize the look-back list with initial_cost repeated list_length times
@@ -74,6 +76,14 @@ def save_schedule_to_excel(schedule, periods, output_file):
             start_time = period.get('time', "")  # Start Time
             duration = period.get('duration_in_minutes', "")  # Duration in minutes
             penalty = period.get('penalty', "")
+
+            # Ensure valid date format
+            try:
+                if period_date != "Unscheduled":
+                    period_date = datetime.strptime(period_date, "%d:%m:%Y").strftime("%Y-%m-%d")
+            except ValueError as e:
+                print(f"Invalid date format for Exam ID {exam_id}: {period_date}. Marking as Unscheduled.")
+                period_date = "Unscheduled"
 
             # Calculate End Time if Start Time and Duration are valid
             if start_time and duration:
@@ -536,6 +546,63 @@ def generate_n_schedules(n, exams, periods, rooms, period_constraints, room_cons
 
     return schedules
 
+def visualize_schedule_from_excel(excel_file, output_image_name):
+    schedule_df = pd.read_excel(excel_file)
+    
+    # Check if required columns exist
+    required_columns = ["Exam ID", "Date", "Start Time", "End Time", "Room"]
+    if not all(col in schedule_df.columns for col in required_columns):
+        raise ValueError(f"The Excel file must contain the following columns: {required_columns}")
+    
+    # Combine Date and Start/End Times into datetime, handling invalid dates
+    schedule_df["Start"] = pd.to_datetime(schedule_df["Date"] + " " + schedule_df["Start Time"], errors='coerce')
+    schedule_df["End"] = pd.to_datetime(schedule_df["Date"] + " " + schedule_df["End Time"], errors='coerce')
+    
+    # Log invalid rows and drop them from the dataframe
+    invalid_rows = schedule_df[schedule_df["Start"].isna() | schedule_df["End"].isna()]
+    if not invalid_rows.empty:
+        print("Warning: Found rows with invalid date/time data. These will be skipped:")
+        print(invalid_rows)
+    schedule_df = schedule_df.dropna(subset=["Start", "End"])
+    
+    # Plot the schedule
+    fig, ax = plt.subplots(figsize=(15, 8))
+    for i, row in schedule_df.iterrows():
+        ax.barh(
+            row["Room"], 
+            (row["End"] - row["Start"]).seconds / 60,  # Convert duration to minutes
+            left=row["Start"], 
+            color="skyblue", 
+            edgecolor="black", 
+            label=row["Exam ID"] if i == 0 else ""  # Avoid duplicate labels
+        )
+        # Add text label for Exam ID
+        ax.text(
+            row["Start"], 
+            row["Room"], 
+            f"{row['Exam ID']}", 
+            va="center", 
+            ha="left", 
+            fontsize=10
+        )
+    
+    # Format the axes
+    ax.xaxis_date()
+    ax.set_title("Exam Schedule Visualization", fontsize=16)
+    ax.set_xlabel("Time", fontsize=14)
+    ax.set_ylabel("Room", fontsize=14)
+    plt.xticks(rotation=45, fontsize=10)
+    plt.yticks(fontsize=10)
+    plt.tight_layout()
+    
+    # Save the plot to a file with the given name
+    plt.savefig(output_image_name)
+    plt.close()
+    
+    print(f"Schedule visualization saved to {output_image_name}")
+    return output_image_name
+
+
 def main():
     json_file = "/Users/robalvarez/Desktop/Thesis_Core_CSA_Group_8/examtojson1.json"  # Your file path here
     exams, periods, rooms, period_constraints, room_constraints, institutional_weightings = parse_input(json_file)
@@ -575,6 +642,8 @@ def main():
 
     save_schedule_to_excel(initial_schedule, periods, "original_schedule.xlsx")
 
+    visualize_schedule_from_excel("original_schedule.xlsx", "original_schedule.png")
+
     print("original schedule saved")
 
     # LAHC ORIGINAL parameters
@@ -605,6 +674,7 @@ def main():
         file.write(json.dumps(best_schedule, indent=4))
 
     save_schedule_to_excel(best_schedule, periods, "optimized_LAHC_schedule.xlsx")
+    visualize_schedule_from_excel("optimized_LAHC_schedule.xlsx", "LAHC_Optimized_schedule.png")
 
     list_length = 10
     max_no_improve = 5  # Run for 1 minute
@@ -627,6 +697,7 @@ def main():
         file.write(json.dumps(best_schedule, indent=4))
 
     save_schedule_to_excel(best_schedule, periods, "optimized_DLAS_schedule.xlsx")
+    visualize_schedule_from_excel("optimized_DLAS_schedule.xlsx", "DLAS_Optimized_schedule.png")
 
     # SCHC parameters
     max_steps = 5
@@ -652,6 +723,7 @@ def main():
         file.write(json.dumps(best_schedule, indent=4))
 
     save_schedule_to_excel(best_schedule, periods, "optimized_SCHC_schedule.xlsx")
+    visualize_schedule_from_excel("optimized_SCHC_schedule.xlsx", "SCHC_Optimized_schedule.png")
 
 if __name__ == "__main__":
     main()
