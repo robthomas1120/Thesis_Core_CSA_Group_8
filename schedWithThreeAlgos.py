@@ -225,6 +225,7 @@ def schc_with_perturb_list(initial_solution, initial_cost, max_steps, max_iterat
     step_count = 0  # Tracks consecutive worse solutions accepted
     iterations_since_last_improvement = 0  # Tracks iterations without improvement
     perturb_index = 0  # To track which perturbation to use
+    start_time = time.time()
 
     for iteration in range(max_iterations):
         # Get the next perturbation from the list
@@ -255,11 +256,12 @@ def schc_with_perturb_list(initial_solution, initial_cost, max_steps, max_iterat
             step_count = 0  # Reset step count
             iterations_since_last_improvement += 1
         
-        print(f"Iteration {iteration + 1}, Current Best Cost Solution in SCHC: [{best_cost}]")
+        print(f"Current Best Cost in SCHC: [{best_cost}], No Improvement Count: [{iteration + 1}]")
         
         # Check for convergence
         if iterations_since_last_improvement >= convergence_threshold:
-            print("Converged after", iteration + 1, "iterations.")
+            elapsed_time = time.time() - start_time
+            print(f"SCHC completed in {elapsed_time:.2f} seconds.")
             break
     
     return best_solution, best_cost
