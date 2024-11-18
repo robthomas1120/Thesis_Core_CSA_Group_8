@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import random
 import copy
@@ -51,15 +51,16 @@ def compute_cost(schedule, institutional_weightings, student_counts):
     hard_weight, soft_weight = calculate_schedule_weight(schedule, institutional_weightings, student_counts)
     return hard_weight + soft_weight
 
-
 def save_schedule_to_excel(schedule, periods, output_file):
+    import openpyxl
+    
     # Create a new workbook and select the active worksheet
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = "Exam Schedule"
 
     # Add headers to the sheet
-    sheet.append(["Exam ID", "Period Date", "Period Time", "Duration (mins)", "Room", "Penalty"])
+    sheet.append(["Exam ID", "Date", "Start Time", "End Time", "Duration", "Room", "Penalty"])
 
     # Add exam schedule data
     for exam_id, details in schedule.items():
@@ -70,12 +71,26 @@ def save_schedule_to_excel(schedule, periods, output_file):
         if period_id != -1:
             period = periods[period_id]
             period_date = period.get('date', "Unscheduled")
-            period_time = period.get('time', "")
-            duration = period.get('duration_in_minutes', "")
+            start_time = period.get('time', "")  # Start Time
+            duration = period.get('duration_in_minutes', "")  # Duration in minutes
             penalty = period.get('penalty', "")
+
+            # Calculate End Time if Start Time and Duration are valid
+            if start_time and duration:
+                try:
+                    # Ensure the format matches the provided start time (with seconds)
+                    start_time_obj = datetime.strptime(start_time, "%H:%M:%S")
+                    end_time_obj = start_time_obj + timedelta(minutes=int(duration))
+                    end_time = end_time_obj.strftime("%H:%M:%S")
+                except ValueError as e:
+                    print(f"Error for Exam ID {exam_id}: {e}")
+                    end_time = "Invalid Time/Duration"
+            else:
+                end_time = "Unscheduled"
         else:
             period_date = "Unscheduled"
-            period_time = ""
+            start_time = ""
+            end_time = ""
             duration = ""
             penalty = ""
 
@@ -83,7 +98,7 @@ def save_schedule_to_excel(schedule, periods, output_file):
         room = room_id if room_id != -1 else "No room"
 
         # Append data to the sheet
-        sheet.append([exam_id, period_date, period_time, duration, room, penalty])
+        sheet.append([exam_id, period_date, start_time, end_time, duration, room, penalty])
 
     # Save the workbook to the specified output file
     workbook.save(output_file)
@@ -520,6 +535,7 @@ def generate_n_schedules(n, exams, periods, rooms, period_constraints, room_cons
             print("Could not generate a valid schedule in this attempt.")
 
     return schedules
+
 def main():
     json_file = "/Users/robalvarez/Desktop/Thesis_Core_CSA_Group_8/examtojson1.json"  # Your file path here
     exams, periods, rooms, period_constraints, room_constraints, institutional_weightings = parse_input(json_file)
@@ -536,7 +552,12 @@ def main():
         return
     
     print("generating 5000 perturbation schedule")
-    perturb_list = generate_perturb_list(initial_schedule, exams, periods, rooms, num_perturbations=5000)
+    #original
+    #num_perturbations=5000
+
+    #test
+    #num_perturbations=10
+    perturb_list = generate_perturb_list(initial_schedule, exams, periods, rooms, num_perturbations=100)
     print("done")
     # Initial cost
     initial_cost = compute_cost(initial_schedule, institutional_weightings, student_counts)
